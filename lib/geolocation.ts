@@ -47,30 +47,11 @@ export async function getIPData(): Promise<IPData | null> {
     }
 
     const data = await response.json()
-    console.log("[v0] 📦 IP API raw response:", JSON.stringify(data))
+    console.log("[v0] 📦 IP API response:", data)
 
     if (data.status === "fail") {
       console.error("[v0] ❌ IP API fail:", data.message)
       throw new Error(data.message || "IP lookup failed")
-    }
-
-    if (
-      typeof data.lat === "undefined" ||
-      typeof data.lon === "undefined" ||
-      data.lat === null ||
-      data.lon === null ||
-      isNaN(data.lat) ||
-      isNaN(data.lon) ||
-      (data.lat === 0 && data.lon === 0)
-    ) {
-      console.warn(
-        "[v0] ⚠️ IP API missing or invalid coordinates (lat:",
-        data.lat,
-        "lon:",
-        data.lon,
-        "), trying fallback API (ipapi.co)...",
-      )
-      return await getIPDataFallback()
     }
 
     const ipData: IPData = {
@@ -87,12 +68,10 @@ export async function getIPData(): Promise<IPData | null> {
       as: data.as,
     }
 
-    console.log("[v0] ✅ IP geolocation detected:", {
+    console.log("[v0] ✅ IP data captured:", {
       ip: ipData.ip,
-      coordinates: { lat: ipData.latitude, lon: ipData.longitude },
       location: `${ipData.city}, ${ipData.region}, ${ipData.country}`,
-      isp: ipData.isp,
-      message: "This is where the IP address is geographically located, not your physical location",
+      coordinates: `${ipData.latitude}, ${ipData.longitude}`,
     })
 
     return ipData
@@ -115,30 +94,11 @@ async function getIPDataFallback(): Promise<IPData | null> {
     }
 
     const data = await response.json()
-    console.log("[v0] 📦 Fallback API raw response:", JSON.stringify(data))
+    console.log("[v0] 📦 Fallback API response:", data)
 
     if (data.error) {
       console.error("[v0] ❌ Fallback API error:", data.reason)
       throw new Error(data.reason || "Fallback IP lookup failed")
-    }
-
-    if (
-      typeof data.latitude === "undefined" ||
-      typeof data.longitude === "undefined" ||
-      data.latitude === null ||
-      data.longitude === null ||
-      isNaN(data.latitude) ||
-      isNaN(data.longitude) ||
-      (data.latitude === 0 && data.longitude === 0)
-    ) {
-      console.error(
-        "[v0] ❌ Fallback API also has invalid coordinates (lat:",
-        data.latitude,
-        "lon:",
-        data.longitude,
-        ")!",
-      )
-      return null
     }
 
     const ipData: IPData = {
@@ -155,12 +115,10 @@ async function getIPDataFallback(): Promise<IPData | null> {
       as: data.asn,
     }
 
-    console.log("[v0] ✅ IP geolocation detected:", {
+    console.log("[v0] ✅ Fallback IP data captured:", {
       ip: ipData.ip,
-      coordinates: { lat: ipData.latitude, lon: ipData.longitude },
       location: `${ipData.city}, ${ipData.region}, ${ipData.country}`,
-      isp: ipData.isp,
-      message: "This is where the IP address is geographically located, not your physical location",
+      coordinates: `${ipData.latitude}, ${ipData.longitude}`,
     })
 
     return ipData
