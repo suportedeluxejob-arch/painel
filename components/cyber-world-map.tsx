@@ -79,12 +79,12 @@ export function CyberWorldMap({
       const lat = c.ipData!.latitude!
       const lng = c.ipData!.longitude!
 
-      console.log("[v0] 📍 Creating marker:", {
+      console.log("[v0] 📍 Creating marker for IP location:", {
         id: c.id,
-        lat,
-        lng,
-        city: c.ipData?.city,
-        country: c.ipData?.country,
+        ip: c.ipData?.ip,
+        coordinates: { lat, lng },
+        location: `${c.ipData?.city}, ${c.ipData?.country}`,
+        message: `Marker will appear at latitude ${lat}° and longitude ${lng}° on the map`,
       })
 
       return {
