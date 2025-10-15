@@ -47,29 +47,47 @@ export function CyberWorldMap({
   const prevCapturesLength = useRef(0)
 
   useEffect(() => {
-    const locationCaptures = captures.filter((c) => {
-      const hasValidIpData = c.pageType === "location" && c.ipData
-      if (!hasValidIpData) return false
+    console.log("[v0] 🗺️ ========== CYBER MAP UPDATE ==========")
+    console.log("[v0] 📥 Received captures:", captures.length)
 
+    const locationCaptures = captures.filter((c) => {
+      const isLocation = c.pageType === "location"
+      const hasIpData = !!c.ipData
       const lat = c.ipData?.latitude
       const lng = c.ipData?.longitude
-
       const hasValidCoordinates = lat != null && lng != null && !isNaN(lat) && !isNaN(lng) && !(lat === 0 && lng === 0)
 
+      if (!isLocation) {
+        console.log("[v0] ⏭️ Skip (not location):", c.id.substring(0, 8))
+        return false
+      }
+
+      if (!hasIpData) {
+        console.warn("[v0] ⚠️ Skip (no IP data):", c.id.substring(0, 8))
+        return false
+      }
+
       if (!hasValidCoordinates) {
-        console.warn("[v0] ⚠️ Skipping capture with invalid coordinates:", {
-          id: c.id,
+        console.warn("[v0] ⚠️ Skip (invalid coords):", {
+          id: c.id.substring(0, 8),
           lat,
           lng,
           city: c.ipData?.city,
           country: c.ipData?.country,
         })
+        return false
       }
 
-      return hasValidCoordinates
+      console.log("[v0] ✅ Valid capture:", {
+        id: c.id.substring(0, 8),
+        coords: `${lat}, ${lng}`,
+        location: `${c.ipData?.city}, ${c.ipData?.country}`,
+      })
+
+      return true
     })
 
-    console.log("[v0] 🗺️ Processing location captures:", {
+    console.log("[v0] 📊 Filtering results:", {
       total: captures.length,
       locationCaptures: locationCaptures.length,
       filtered: captures.length - locationCaptures.length,
@@ -79,12 +97,12 @@ export function CyberWorldMap({
       const lat = c.ipData!.latitude!
       const lng = c.ipData!.longitude!
 
-      console.log("[v0] 📍 Creating marker for IP location:", {
-        id: c.id,
+      console.log(`[v0] 📍 Creating marker ${index + 1}/${locationCaptures.length}:`, {
+        id: c.id.substring(0, 8),
         ip: c.ipData?.ip,
         coordinates: { lat, lng },
         location: `${c.ipData?.city}, ${c.ipData?.country}`,
-        message: `Marker will appear at latitude ${lat}° and longitude ${lng}° on the map`,
+        message: `Marker will be placed at ${lat}°, ${lng}°`,
       })
 
       return {
@@ -101,6 +119,7 @@ export function CyberWorldMap({
       }
     })
 
+    console.log("[v0] 🎯 Setting", newMarkers.length, "markers on map")
     setMarkers(newMarkers)
 
     const stats = new Map<string, CountryStats>()

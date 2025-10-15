@@ -42,23 +42,33 @@ export default function CyberMapDashboard() {
   useEffect(() => {
     const userId = getCurrentUserId()
 
-    console.log("[v0] 🔍 Initializing map dashboard for user:", userId)
+    console.log("[v0] 🗺️ ========== MAP DASHBOARD INITIALIZING ==========")
+    console.log("[v0] 👤 Current user ID:", userId)
 
     if (!userId) {
-      console.log("[v0] ❌ No user logged in")
+      console.error("[v0] ❌ No user logged in - cannot load captures")
       setLoading(false)
       return
     }
 
-    const capturesRef = ref(database, `alvos/${userId}`)
-    console.log("[v0] 📡 Setting up Firebase real-time listener at path:", `alvos/${userId}`)
+    const firebasePath = `alvos/${userId}`
+    const capturesRef = ref(database, firebasePath)
+
+    console.log("[v0] 📡 Setting up Firebase real-time listener")
+    console.log("[v0] 📂 Listening to path:", firebasePath)
+    console.log("[v0] 🔄 Listener type: onValue (real-time)")
 
     const handleData = (snapshot: any) => {
-      console.log("[v0] 🔥 Firebase snapshot received, exists:", snapshot.exists())
+      console.log("[v0] 🔥 ========== FIREBASE DATA RECEIVED ==========")
+      console.log("[v0] 📊 Snapshot exists:", snapshot.exists())
+      console.log("[v0] 🔑 Snapshot key:", snapshot.key)
 
       if (snapshot.exists()) {
         const data = snapshot.val()
-        console.log("[v0] 📦 Raw Firebase data keys:", Object.keys(data).length)
+        const dataKeys = Object.keys(data)
+
+        console.log("[v0] 📦 Raw data keys count:", dataKeys.length)
+        console.log("[v0] 🔑 First 5 keys:", dataKeys.slice(0, 5))
 
         const capturesArray: CaptureData[] = Object.entries(data)
           .map(([firebaseKey, value]: [string, any]) => {
@@ -67,17 +77,19 @@ export default function CyberMapDashboard() {
               id: firebaseKey,
             }
 
-            // Log each capture for debugging
+            const hasIpData = !!capture.ipData
+            const hasCoords = !!(capture.ipData?.latitude && capture.ipData?.longitude)
+            const isLocation = capture.pageType === "location"
+
             console.log("[v0] 📋 Processing capture:", {
-              id: firebaseKey,
+              id: firebaseKey.substring(0, 8) + "...",
               pageType: capture.pageType,
-              hasIpData: !!capture.ipData,
-              hasCoordinates: !!(capture.ipData?.latitude && capture.ipData?.longitude),
-              coordinates:
-                capture.ipData?.latitude && capture.ipData?.longitude
-                  ? { lat: capture.ipData.latitude, lng: capture.ipData.longitude }
-                  : null,
-              location: capture.ipData ? `${capture.ipData.city}, ${capture.ipData.country}` : "No location",
+              isLocation,
+              hasIpData,
+              hasCoords,
+              coords: hasCoords ? `${capture.ipData!.latitude}, ${capture.ipData!.longitude}` : "MISSING",
+              location: capture.ipData ? `${capture.ipData.city}, ${capture.ipData.country}` : "NO LOCATION",
+              timestamp: new Date(capture.timestamp).toISOString(),
             })
 
             return capture
@@ -85,16 +97,26 @@ export default function CyberMapDashboard() {
           .filter((c) => {
             const isLocation = c.pageType === "location"
             if (!isLocation) {
-              console.log("[v0] ⏭️ Skipping non-location capture:", c.id)
+              console.log("[v0] ⏭️ Filtered out (not location):", c.id.substring(0, 8))
               return false
             }
             return true
           })
 
-        console.log("[v0] ✅ Filtered location captures:", {
-          total: Object.keys(data).length,
-          locationOnly: capturesArray.length,
-          withValidCoordinates: capturesArray.filter((c) => c.ipData?.latitude && c.ipData?.longitude).length,
+        const withValidCoords = capturesArray.filter((c) => c.ipData?.latitude && c.ipData?.longitude)
+
+        console.log("[v0] ✅ ========== FILTERING RESULTS ==========")
+        console.log("[v0] 📊 Total captures in Firebase:", dataKeys.length)
+        console.log("[v0] 📍 Location captures:", capturesArray.length)
+        console.log("[v0] ✓ With valid coordinates:", withValidCoords.length)
+        console.log("[v0] ❌ Filtered out:", dataKeys.length - capturesArray.length)
+
+        withValidCoords.forEach((c, index) => {
+          console.log(`[v0] 🗺️ Marker ${index + 1}:`, {
+            location: `${c.ipData!.city}, ${c.ipData!.country}`,
+            coords: `${c.ipData!.latitude}, ${c.ipData!.longitude}`,
+            ip: c.ipData!.ip,
+          })
         })
 
         // Sort by timestamp (newest first)
@@ -104,24 +126,33 @@ export default function CyberMapDashboard() {
           return timeB - timeA
         })
 
-        console.log("[v0] 🗺️ Setting captures state with", sortedCaptures.length, "items")
+        console.log("[v0] 🎯 Setting captures state with", sortedCaptures.length, "items")
+        console.log("[v0] 🗺️ Map should now display", withValidCoords.length, "markers")
         setCaptures(sortedCaptures)
       } else {
-        console.log("[v0] ⚠️ No data in Firebase at path:", `alvos/${userId}`)
+        console.warn("[v0] ⚠️ No data exists at path:", firebasePath)
+        console.log("[v0] 💡 This means no captures have been saved yet")
         setCaptures([])
       }
       setLoading(false)
+      console.log("[v0] 🏁 ========== DATA PROCESSING COMPLETE ==========")
     }
 
     const handleError = (error: Error) => {
-      console.error("[v0] ❌ Firebase listener error:", error)
+      console.error("[v0] ❌ ========== FIREBASE ERROR ==========")
+      console.error("[v0] 🔥 Firebase listener error:", error)
+      console.error("[v0] 📋 Error details:", {
+        name: error.name,
+        message: error.message,
+        stack: error.stack,
+      })
       setLoading(false)
     }
 
     onValue(capturesRef, handleData, handleError)
 
     return () => {
-      console.log("[v0] 🔌 Cleaning up Firebase listener")
+      console.log("[v0] 🔌 Cleaning up Firebase listener for path:", firebasePath)
       off(capturesRef, "value", handleData)
     }
   }, [])

