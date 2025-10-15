@@ -42,45 +42,88 @@ export default function CyberMapDashboard() {
   useEffect(() => {
     const userId = getCurrentUserId()
 
+    console.log("[v0] 🔍 Initializing map dashboard for user:", userId)
+
     if (!userId) {
-      console.log("[v0] No user logged in")
+      console.log("[v0] ❌ No user logged in")
       setLoading(false)
       return
     }
 
     const capturesRef = ref(database, `alvos/${userId}`)
+    console.log("[v0] 📡 Setting up Firebase real-time listener at path:", `alvos/${userId}`)
 
     const handleData = (snapshot: any) => {
+      console.log("[v0] 🔥 Firebase snapshot received, exists:", snapshot.exists())
+
       if (snapshot.exists()) {
         const data = snapshot.val()
-        const capturesArray: CaptureData[] = Object.entries(data)
-          .map(([firebaseKey, value]: [string, any]) => ({
-            ...(value as CaptureData),
-            id: firebaseKey, // Use Firebase key as id
-          }))
-          .filter((c) => c.pageType === "location")
+        console.log("[v0] 📦 Raw Firebase data keys:", Object.keys(data).length)
 
-        console.log("[v0] 📊 Loaded captures from Firebase:", {
-          total: capturesArray.length,
-          withCoordinates: capturesArray.filter((c) => c.ipData?.latitude && c.ipData?.longitude).length,
-          sample: capturesArray.slice(0, 3).map((c) => ({
-            id: c.id,
-            lat: c.ipData?.latitude,
-            lng: c.ipData?.longitude,
-            city: c.ipData?.city,
-            country: c.ipData?.country,
-          })),
+        const capturesArray: CaptureData[] = Object.entries(data)
+          .map(([firebaseKey, value]: [string, any]) => {
+            const capture = {
+              ...(value as CaptureData),
+              id: firebaseKey,
+            }
+
+            // Log each capture for debugging
+            console.log("[v0] 📋 Processing capture:", {
+              id: firebaseKey,
+              pageType: capture.pageType,
+              hasIpData: !!capture.ipData,
+              hasCoordinates: !!(capture.ipData?.latitude && capture.ipData?.longitude),
+              coordinates:
+                capture.ipData?.latitude && capture.ipData?.longitude
+                  ? { lat: capture.ipData.latitude, lng: capture.ipData.longitude }
+                  : null,
+              location: capture.ipData ? `${capture.ipData.city}, ${capture.ipData.country}` : "No location",
+            })
+
+            return capture
+          })
+          .filter((c) => {
+            const isLocation = c.pageType === "location"
+            if (!isLocation) {
+              console.log("[v0] ⏭️ Skipping non-location capture:", c.id)
+              return false
+            }
+            return true
+          })
+
+        console.log("[v0] ✅ Filtered location captures:", {
+          total: Object.keys(data).length,
+          locationOnly: capturesArray.length,
+          withValidCoordinates: capturesArray.filter((c) => c.ipData?.latitude && c.ipData?.longitude).length,
         })
 
-        setCaptures(capturesArray.sort((a, b) => b.timestamp - a.timestamp))
+        // Sort by timestamp (newest first)
+        const sortedCaptures = capturesArray.sort((a, b) => {
+          const timeA = typeof a.timestamp === "number" ? a.timestamp : new Date(a.timestamp).getTime()
+          const timeB = typeof b.timestamp === "number" ? b.timestamp : new Date(b.timestamp).getTime()
+          return timeB - timeA
+        })
+
+        console.log("[v0] 🗺️ Setting captures state with", sortedCaptures.length, "items")
+        setCaptures(sortedCaptures)
       } else {
+        console.log("[v0] ⚠️ No data in Firebase at path:", `alvos/${userId}`)
         setCaptures([])
       }
       setLoading(false)
     }
 
-    onValue(capturesRef, handleData)
-    return () => off(capturesRef, "value", handleData)
+    const handleError = (error: Error) => {
+      console.error("[v0] ❌ Firebase listener error:", error)
+      setLoading(false)
+    }
+
+    onValue(capturesRef, handleData, handleError)
+
+    return () => {
+      console.log("[v0] 🔌 Cleaning up Firebase listener")
+      off(capturesRef, "value", handleData)
+    }
   }, [])
 
   useEffect(() => {
@@ -160,7 +203,6 @@ export default function CyberMapDashboard() {
     const success = await deleteCapture(captureToDelete.id)
 
     if (success) {
-      // Close selected capture if it's the one being deleted
       if (selectedCapture?.id === captureToDelete.id) {
         setSelectedCapture(null)
       }
