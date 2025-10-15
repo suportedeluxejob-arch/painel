@@ -54,8 +54,22 @@ export async function getIPData(): Promise<IPData | null> {
       throw new Error(data.message || "IP lookup failed")
     }
 
-    if (typeof data.lat === "undefined" || typeof data.lon === "undefined" || data.lat === null || data.lon === null) {
-      console.warn("[v0] ⚠️ IP API missing coordinates, trying fallback API (ipapi.co)...")
+    if (
+      typeof data.lat === "undefined" ||
+      typeof data.lon === "undefined" ||
+      data.lat === null ||
+      data.lon === null ||
+      isNaN(data.lat) ||
+      isNaN(data.lon) ||
+      (data.lat === 0 && data.lon === 0)
+    ) {
+      console.warn(
+        "[v0] ⚠️ IP API missing or invalid coordinates (lat:",
+        data.lat,
+        "lon:",
+        data.lon,
+        "), trying fallback API (ipapi.co)...",
+      )
       return await getIPDataFallback()
     }
 
@@ -108,9 +122,22 @@ async function getIPDataFallback(): Promise<IPData | null> {
       throw new Error(data.reason || "Fallback IP lookup failed")
     }
 
-    // Check if coordinates exist
-    if (typeof data.latitude === "undefined" || typeof data.longitude === "undefined") {
-      console.error("[v0] ❌ Fallback API also missing coordinates!")
+    if (
+      typeof data.latitude === "undefined" ||
+      typeof data.longitude === "undefined" ||
+      data.latitude === null ||
+      data.longitude === null ||
+      isNaN(data.latitude) ||
+      isNaN(data.longitude) ||
+      (data.latitude === 0 && data.longitude === 0)
+    ) {
+      console.error(
+        "[v0] ❌ Fallback API also has invalid coordinates (lat:",
+        data.latitude,
+        "lon:",
+        data.longitude,
+        ")!",
+      )
       return null
     }
 

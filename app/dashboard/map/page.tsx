@@ -60,6 +60,18 @@ export default function CyberMapDashboard() {
           }))
           .filter((c) => c.pageType === "location")
 
+        console.log("[v0] 📊 Loaded captures from Firebase:", {
+          total: capturesArray.length,
+          withCoordinates: capturesArray.filter((c) => c.ipData?.latitude && c.ipData?.longitude).length,
+          sample: capturesArray.slice(0, 3).map((c) => ({
+            id: c.id,
+            lat: c.ipData?.latitude,
+            lng: c.ipData?.longitude,
+            city: c.ipData?.city,
+            country: c.ipData?.country,
+          })),
+        })
+
         setCaptures(capturesArray.sort((a, b) => b.timestamp - a.timestamp))
       } else {
         setCaptures([])

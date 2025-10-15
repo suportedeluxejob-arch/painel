@@ -47,18 +47,45 @@ export function CyberWorldMap({
   const prevCapturesLength = useRef(0)
 
   useEffect(() => {
-    const locationCaptures = captures.filter((c) => c.pageType === "location" && c.ipData)
+    const locationCaptures = captures.filter((c) => {
+      const hasValidIpData = c.pageType === "location" && c.ipData
+      if (!hasValidIpData) return false
 
-    const newMarkers: MapMarker[] = locationCaptures.map((c, index) => {
-      const lat = c.ipData?.latitude ?? 0
-      const lng = c.ipData?.longitude ?? 0
+      const lat = c.ipData?.latitude
+      const lng = c.ipData?.longitude
 
-      if (lat === 0 && lng === 0) {
-        console.warn("[v0] ⚠️ Capture missing coordinates:", {
+      const hasValidCoordinates = lat != null && lng != null && !isNaN(lat) && !isNaN(lng) && !(lat === 0 && lng === 0)
+
+      if (!hasValidCoordinates) {
+        console.warn("[v0] ⚠️ Skipping capture with invalid coordinates:", {
           id: c.id,
-          hasIpData: !!c.ipData,
+          lat,
+          lng,
+          city: c.ipData?.city,
+          country: c.ipData?.country,
         })
       }
+
+      return hasValidCoordinates
+    })
+
+    console.log("[v0] 🗺️ Processing location captures:", {
+      total: captures.length,
+      locationCaptures: locationCaptures.length,
+      filtered: captures.length - locationCaptures.length,
+    })
+
+    const newMarkers: MapMarker[] = locationCaptures.map((c, index) => {
+      const lat = c.ipData!.latitude!
+      const lng = c.ipData!.longitude!
+
+      console.log("[v0] 📍 Creating marker:", {
+        id: c.id,
+        lat,
+        lng,
+        city: c.ipData?.city,
+        country: c.ipData?.country,
+      })
 
       return {
         id: c.id,

